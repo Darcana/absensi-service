@@ -62,6 +62,7 @@ export class EmployeeService {
       const existingEmail = await this.prisma.employee.findFirst({
         where: {
           email: dto.email,
+          NOT: { id },
         },
       });
 
