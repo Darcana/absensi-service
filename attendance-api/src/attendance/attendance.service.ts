@@ -32,4 +32,32 @@ export class AttendanceService {
       orderBy: { timestamp: 'desc' },
     });
   }
+
+  async getLatestAttendance(employeeId: number) {
+    return this.prisma.attendance.findFirstOrThrow({
+      where: { employeeId },
+      orderBy: { timestamp: 'desc' },
+    });
+  }
+
+  async getAllAttendance(page: number, limit: number) {
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      this.prisma.attendance.findMany({
+        skip,
+        take: limit,
+        orderBy: { timestamp: 'desc' },
+      }),
+      this.prisma.attendance.count()
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
 }

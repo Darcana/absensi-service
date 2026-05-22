@@ -44,4 +44,9 @@ export class EmployeeController {
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.employeeService.remove(id);
   }
+
+  @Get(':id')
+  findEmployee(@Param('id', ParseIntPipe) id: number) {
+    return this.employeeService.findEmployee(id);
+  }
 }

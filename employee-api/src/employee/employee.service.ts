@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
+
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { EmployeeLevel } from '@prisma/client';
@@ -20,18 +26,46 @@ export class EmployeeService {
         name: employeeName,
         email: employeeEmail,
         password: hashedPassword,
-        level: EmployeeLevel.EMPLOYEE
+        level: EmployeeLevel.EMPLOYEE,
       },
     });
   }
 
   async login(email: string, password: string) {
-    return this.prisma.employee.findFirstOrThrow({
-      where: { email, password },
-    });
+    try {
+      const employee = await this.prisma.employee.findFirstOrThrow({
+        where: { email, deletedAt: null },
+      });
+
+      const isMatch = await bcrypt.compare(password, employee.password);
+      if (!isMatch) throw new UnauthorizedException('Invalid credentials');
+
+      const { password: _, ...result } = employee
+      return result;
+    } catch (error) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+      throw error;
+    }
   }
 
   async update(id: number, dto: UpdateEmployeeDto) {
+    if (dto.email) {
+      const existingEmail = await this.prisma.employee.findFirst({
+        where: {
+          email: dto.email,
+        },
+      });
+
+      if (existingEmail) {
+        throw new UnprocessableEntityException('Email already exists');
+      }
+    }
+
     try {
       const employee = await this.prisma.employee.update({
         where: { id, deletedAt: null },
@@ -60,7 +94,7 @@ export class EmployeeService {
         level: true,
       },
       orderBy: {
-        id: 'desc',
+        name: 'asc',
       },
     });
   }
@@ -69,6 +103,17 @@ export class EmployeeService {
     return this.prisma.employee.update({
       where: { id },
       data: { deletedAt: new Date() },
+    });
+  }
+
+  async findEmployee(id: number) {
+    return this.prisma.employee.findFirstOrThrow({
+      where: { deletedAt: null, id },
+      select: {
+        name: true,
+        email: true,
+        level: true,
+      },
     });
   }
 }
