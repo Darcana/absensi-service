@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsEmail } from 'class-validator';
 import { EmployeeLevel } from '@prisma/client';
 
 export class UpdateEmployeeDto {
@@ -9,4 +9,7 @@ export class UpdateEmployeeDto {
   @IsEnum(EmployeeLevel)
   @IsOptional()
   level?: EmployeeLevel;
+
+  @IsEmail()
+  email!: string;
 }

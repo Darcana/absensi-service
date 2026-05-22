@@ -7,6 +7,8 @@ import {
   ParseIntPipe,
   UploadedFile,
   UseInterceptors,
+  DefaultValuePipe,
+  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer'
@@ -43,5 +45,18 @@ export class AttendanceController {
   @Get(':employeeId')
   getAttendance(@Param('employeeId', ParseIntPipe) employeeId: number) {
     return this.attendanceService.getAttendance(employeeId);
+  }
+
+  @Get('latest/:employeeId')
+  getLatestAttendance(@Param('employeeId', ParseIntPipe) employeeId: number) {
+    return this.attendanceService.getLatestAttendance(employeeId);
+  }
+
+  @Get()
+  getAllAttendance(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    return this.attendanceService.getAllAttendance(page, limit);
   }
 }
