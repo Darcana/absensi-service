@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: absensi-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: terserah123!
+      MYSQL_DATABASE: attendance
+    ports:
+      - '3306:3306'
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  employee-service:
+    build:
+      context: ./employee-api
+      dockerfile: Dockerfile
+    container_name: employee-service
+    restart: always
+    ports:
+      - '3001:3001'
+    environment:
+      DATABASE_URL: mysql://root:terserah123!@mysql:3306/employee
+    depends_on:
+      - mysql
+
+  attendance-service:
+    build:
+      context: ./attendance-api
+      dockerfile: Dockerfile
+    container_name: attendance-service
+    restart: always
+    ports:
+      - '3000:3000'
+    environment:
+      DATABASE_URL: mysql://root:terserah123!@mysql:3306/attendance
+    depends_on:
+      - mysql
+
+volumes:
+  mysql_data:
