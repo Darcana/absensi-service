@@ -1,3 +1,9 @@
+<b>Requirements :</b>
+1. MySQL Databases
+2. Nest.Js
+   
+
+<b>Steps :</b>
 1. copy .env.copy
 2. remove the .copy > resulting in .env
 3. adjust with the mysql
