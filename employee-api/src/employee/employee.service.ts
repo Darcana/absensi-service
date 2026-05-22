@@ -36,6 +36,7 @@ export class EmployeeService {
   }
 
   async login(email: string, password: string) {
+    // can be improved for future implementation with any sso
     try {
       const employee = await this.prisma.employee.findFirstOrThrow({
         where: { email, deletedAt: null },
@@ -62,6 +63,7 @@ export class EmployeeService {
       const existingEmail = await this.prisma.employee.findFirst({
         where: {
           email: dto.email,
+          NOT: { id },
         },
       });
 
