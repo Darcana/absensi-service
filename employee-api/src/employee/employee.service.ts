@@ -21,7 +21,8 @@ export class EmployeeService {
     employeePassword: string,
   ) {
     const hashedPassword = await bcrypt.hash(employeePassword, 10);
-    return this.prisma.employee.create({
+
+    const employee = await this.prisma.employee.create({
       data: {
         name: employeeName,
         email: employeeEmail,
@@ -29,6 +30,9 @@ export class EmployeeService {
         level: EmployeeLevel.EMPLOYEE,
       },
     });
+
+    const { password: _, ...result } = employee
+    return result;
   }
 
   async login(email: string, password: string) {
@@ -43,10 +47,10 @@ export class EmployeeService {
       const { password: _, ...result } = employee
       return result;
     } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      if (error?.code === 'P2025') {
         throw new UnauthorizedException('Invalid credentials');
       }
       throw error;

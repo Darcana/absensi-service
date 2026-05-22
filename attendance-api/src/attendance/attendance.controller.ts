@@ -11,8 +11,6 @@ import {
   Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer'
-import { extname } from 'path'
 import { AttendanceService } from './attendance.service';
 import { multerConfig } from './multer.config';
 import { CheckInDto } from './dto/checkin.dto';
