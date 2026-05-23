@@ -41,12 +41,12 @@ export class AttendanceController {
   }
 
   @Get(':employeeId')
-  getAttendance(@Param('employeeId', ParseIntPipe) employeeId: number) {
+  getAttendance(@Param('employeeId') employeeId: string) {
     return this.attendanceService.getAttendance(employeeId);
   }
 
   @Get('latest/:employeeId')
-  getLatestAttendance(@Param('employeeId', ParseIntPipe) employeeId: number) {
+  getLatestAttendance(@Param('employeeId') employeeId: string) {
     return this.attendanceService.getLatestAttendance(employeeId);
   }
 

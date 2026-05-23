@@ -58,7 +58,7 @@ export class EmployeeService {
     }
   }
 
-  async update(id: number, dto: UpdateEmployeeDto) {
+  async update(id: string, dto: UpdateEmployeeDto) {
     if (dto.email) {
       const existingEmail = await this.prisma.employee.findFirst({
         where: {
@@ -105,14 +105,14 @@ export class EmployeeService {
     });
   }
 
-  async remove(id: number) {
+  async remove(id: string) {
     return this.prisma.employee.update({
       where: { id },
       data: { deletedAt: new Date() },
     });
   }
 
-  async findEmployee(id: number) {
+  async findEmployee(id: string) {
     return this.prisma.employee.findFirstOrThrow({
       where: { deletedAt: null, id },
       select: {

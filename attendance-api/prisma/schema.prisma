@@ -20,7 +20,7 @@ enum AttendanceType {
 
 model Attendance {
   id         Int            @id @default(autoincrement())
-  employeeId Int
+  employeeId String
   type       AttendanceType
   timestamp  DateTime       @default(now())
   imagePath  String?

@@ -39,13 +39,13 @@ describe('EmployeeService', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks()
+    jest.clearAllMocks();
   });
 
   describe('register', () => {
     it('should register a new employee with hashed password', async () => {
       const mockEmployee = {
-        id: 1,
+        id: '1',
         name: 'John Doe',
         email: 'john@doe.com',
         password: 'hashedpassword',
@@ -55,15 +55,19 @@ describe('EmployeeService', () => {
 
       mockPrismaService.employee.create.mockResolvedValue(mockEmployee);
 
-      const result = await service.register('John Doe', 'john@doe.com', 'password123')
+      const result = await service.register(
+        'John Doe',
+        'john@doe.com',
+        'password123',
+      );
 
-      expect(result).not.toHaveProperty('password')
-      expect(mockPrismaService.employee.create).toHaveBeenCalled()
+      expect(result).not.toHaveProperty('password');
+      expect(mockPrismaService.employee.create).toHaveBeenCalled();
     });
 
     it('should hash the password before saving', async () => {
       const mockEmployee = {
-        id: 1,
+        id: '1',
         name: 'John',
         email: 'john@doe.com',
         password: 'hashedpassword',
@@ -84,7 +88,7 @@ describe('EmployeeService', () => {
     it('should login successfully with correct credentials', async () => {
       const hashedPassword = await bcrypt.hash('password123', 10);
       const mockEmployee = {
-        id: 1,
+        id: '1',
         name: 'John',
         email: 'john@doe.com',
         password: hashedPassword,
@@ -98,14 +102,14 @@ describe('EmployeeService', () => {
 
       const result = await service.login('john@doe.com', 'password123');
 
-      expect(result).not.toHaveProperty('password')
-      expect(result.email).toBe('john@doe.com')
-    })
+      expect(result).not.toHaveProperty('password');
+      expect(result.email).toBe('john@doe.com');
+    });
 
     it('should throw UnauthorizedException for wrong password', async () => {
       const hashedPassword = await bcrypt.hash('correctpassword', 10);
       const mockEmployee = {
-        id: 1,
+        id: '1',
         name: 'John',
         email: 'john@doe.com',
         password: hashedPassword,
@@ -117,7 +121,8 @@ describe('EmployeeService', () => {
         mockEmployee,
       );
 
-      await expect(service.login('john@doe.com', 'wrongpassword')
+      await expect(
+        service.login('john@doe.com', 'wrongpassword'),
       ).rejects.toThrow(UnauthorizedException);
     });
 
@@ -126,7 +131,8 @@ describe('EmployeeService', () => {
         code: 'P2025',
       });
 
-      await expect(service.login('notfound@doe.com', 'password123')
+      await expect(
+        service.login('notfound@doe.com', 'password123'),
       ).rejects.toThrow(UnauthorizedException);
     });
   });
@@ -135,13 +141,13 @@ describe('EmployeeService', () => {
     it('should return all active employees without password', async () => {
       const mockEmployees = [
         {
-          id: 1,
+          id: '1',
           name: 'John',
           email: 'john@doe.com',
           level: EmployeeLevel.EMPLOYEE,
         },
         {
-          id: 2,
+          id: '2',
           name: 'Jane',
           email: 'jane@doe.com',
           level: EmployeeLevel.ADMIN_HRD,
@@ -152,7 +158,7 @@ describe('EmployeeService', () => {
 
       const result = await service.findAll();
 
-      expect(result).toEqual(mockEmployees)
+      expect(result).toEqual(mockEmployees);
       expect(mockPrismaService.employee.findMany).toHaveBeenCalledWith({
         where: { deletedAt: null },
         select: {
@@ -169,7 +175,7 @@ describe('EmployeeService', () => {
   describe('update', () => {
     it('should update employee successfully', async () => {
       const mockEmployee = {
-        id: 1,
+        id: '1',
         name: 'John Updated',
         email: 'john@doe.com',
         password: 'hashed',
@@ -182,21 +188,22 @@ describe('EmployeeService', () => {
 
       const result = await service.update(1, { name: 'John Updated' } as any);
 
-      expect(result).not.toHaveProperty('password')
-      expect(result.name).toBe('John Updated')
+      expect(result).not.toHaveProperty('password');
+      expect(result.name).toBe('John Updated');
     });
 
     it('should throw UnprocessableEntityException if email already exists', async () => {
       mockPrismaService.employee.findFirst.mockResolvedValue({
-        id: 2,
+        id: '2',
         email: 'taken@doe.com',
       });
 
-      await expect(service.update(1, { email: 'taken@doe.com' } as any)
+      await expect(
+        service.update(1, { email: 'taken@doe.com' } as any),
       ).rejects.toThrow(UnprocessableEntityException);
     });
 
-it('should throw NotFoundException if employee not found', async () => {
+    it('should throw NotFoundException if employee not found', async () => {
       const prismaError = new Error('not found') as any
       prismaError.code = 'P2025'
       prismaError.name = 'PrismaClientKnownRequestError'
@@ -204,7 +211,8 @@ it('should throw NotFoundException if employee not found', async () => {
       mockPrismaService.employee.findFirst.mockResolvedValue(null);
       mockPrismaService.employee.update.mockRejectedValue(prismaError);
 
-  await expect(service.update(999, { name: 'Ghost' } as any)
+      await expect(
+        service.update(999, { name: 'Ghost' } as any),
       ).rejects.toThrow();
     });
   });
@@ -212,7 +220,7 @@ it('should throw NotFoundException if employee not found', async () => {
   describe('remove', () => {
     it('should soft delete an employee', async () => {
       const mockEmployee = {
-        id: 1,
+        id: '1',
         name: 'John',
         deletedAt: new Date(),
       };
@@ -222,7 +230,7 @@ it('should throw NotFoundException if employee not found', async () => {
       const result = await service.remove(1)
 
       expect(mockPrismaService.employee.update).toHaveBeenCalledWith({
-        where: { id: 1 },
+        where: { id: '1' },
         data: { deletedAt: expect.any(Date) }
       });
     });

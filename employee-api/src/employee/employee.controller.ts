@@ -28,10 +28,7 @@ export class EmployeeController {
   }
 
   @Patch(':id')
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateEmployeeDto,
-  ) {
+  update(@Param('id') id: string, @Body() dto: UpdateEmployeeDto) {
     return this.employeeService.update(id, dto);
   }
 
@@ -41,12 +38,12 @@ export class EmployeeController {
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
+  remove(@Param('id') id: string) {
     return this.employeeService.remove(id);
   }
 
   @Get(':id')
-  findEmployee(@Param('id', ParseIntPipe) id: number) {
+  findEmployee(@Param('id') id: string) {
     return this.employeeService.findEmployee(id);
   }
 }

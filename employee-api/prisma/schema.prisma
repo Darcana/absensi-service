@@ -16,10 +16,11 @@ datasource db {
 enum EmployeeLevel {
   EMPLOYEE
   ADMIN_HRD
+  SUPERADMIN
 }
 
 model Employee {
-  id    Int    @id @default(autoincrement())
+  id    String    @id @default(uuid())
   name  String
   email String @unique
   password String
