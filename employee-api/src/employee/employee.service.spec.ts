@@ -1,14 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EmployeeService } from './employee.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { JwtService } from '@nestjs/jwt';
 import { EmployeeLevel } from '@prisma/client';
 import {
-  NotFoundException,
   UnauthorizedException,
+  NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import * as bcrypt from 'bcrypt';
-import { NotFoundError } from 'rxjs';
 
 const mockPrismaService = {
   employee: {
@@ -16,9 +17,12 @@ const mockPrismaService = {
     findFirst: jest.fn(),
     findFirstOrThrow: jest.fn(),
     findMany: jest.fn(),
-    findUnique: jest.fn(),
     update: jest.fn(),
   },
+};
+
+const mockJwtService = {
+  sign: jest.fn().mockReturnValue('mock-jwt-token')
 };
 
 describe('EmployeeService', () => {
@@ -28,10 +32,8 @@ describe('EmployeeService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EmployeeService,
-        {
-          provide: PrismaService,
-          useValue: mockPrismaService,
-        },
+        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: JwtService, useValue: mockJwtService },
       ],
     }).compile();
 
@@ -39,13 +41,13 @@ describe('EmployeeService', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    jest.clearAllMocks()
   });
 
   describe('register', () => {
-    it('should register a new employee with hashed password', async () => {
+    it('should register a new employee and return without password', async () => {
       const mockEmployee = {
-        id: '1',
+        id: 'uuid-123',
         name: 'John Doe',
         email: 'john@doe.com',
         password: 'hashedpassword',
@@ -61,13 +63,14 @@ describe('EmployeeService', () => {
         'password123',
       );
 
-      expect(result).not.toHaveProperty('password');
-      expect(mockPrismaService.employee.create).toHaveBeenCalled();
-    });
+      expect(result).not.toHaveProperty('password')
+      expect(result.name).toBe('John Doe')
+      expect(result.email).toBe('john@doe.com')
+    })
 
     it('should hash the password before saving', async () => {
       const mockEmployee = {
-        id: '1',
+        id: 'uuid-123',
         name: 'John',
         email: 'john@doe.com',
         password: 'hashedpassword',
@@ -82,13 +85,31 @@ describe('EmployeeService', () => {
       const callArgs = mockPrismaService.employee.create.mock.calls[0][0]
       expect(callArgs.data.password).not.toBe('plainpassword')
     });
+
+    it('should set default level to EMPLOYEE', async () => {
+      const mockEmployee = {
+        id: 'uuid-123',
+        name: 'John',
+        email: 'john@doe.com',
+        password: 'hashedpassword',
+        level: EmployeeLevel.EMPLOYEE,
+        deletedAt: null,
+      };
+
+      mockPrismaService.employee.create.mockResolvedValue(mockEmployee);
+
+      await service.register('John', 'john@doe.com', 'password123');
+
+      const callArgs = mockPrismaService.employee.create.mock.calls[0][0]
+      expect(callArgs.data.level).toBe(EmployeeLevel.EMPLOYEE)
+    });
   });
 
   describe('login', () => {
-    it('should login successfully with correct credentials', async () => {
+    it('should login successfully and return token', async () => {
       const hashedPassword = await bcrypt.hash('password123', 10);
       const mockEmployee = {
-        id: '1',
+        id: 'uuid-123',
         name: 'John',
         email: 'john@doe.com',
         password: hashedPassword,
@@ -102,14 +123,40 @@ describe('EmployeeService', () => {
 
       const result = await service.login('john@doe.com', 'password123');
 
-      expect(result).not.toHaveProperty('password');
-      expect(result.email).toBe('john@doe.com');
+      expect(result).toHaveProperty('token')
+      expect(result).toHaveProperty('employee')
+      expect(result.token).toBe('mock-jwt-token')
+      expect(result.employee).not.toHaveProperty('password')
     });
 
     it('should throw UnauthorizedException for wrong password', async () => {
       const hashedPassword = await bcrypt.hash('correctpassword', 10);
       const mockEmployee = {
-        id: '1',
+        id: 'uuid-123',
+        name: 'John',
+        email: 'john@doe.com',
+        password: hashedPassword,
+        level: EmployeeLevel.EMPLOYEE,
+        deletedAt: null,
+      };
+
+      mockPrismaService.employee.findFirstOrThrow.mockResolvedValue(mockEmployee)
+
+      await expect(service.login('john@doe.com', 'wrongpassword')
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException if employee not found', async () => {
+      mockPrismaService.employee.findFirstOrThrow.mockRejectedValue({ code: 'P2025' })
+
+      await expect(service.login('notfound@doe.com', 'password123')
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should sign jwt with correct payload', async () => {
+      const hashedPassword = await bcrypt.hash('password123', 10);
+      const mockEmployee = {
+        id: 'uuid-123',
         name: 'John',
         email: 'john@doe.com',
         password: hashedPassword,
@@ -121,19 +168,14 @@ describe('EmployeeService', () => {
         mockEmployee,
       );
 
-      await expect(
-        service.login('john@doe.com', 'wrongpassword'),
-      ).rejects.toThrow(UnauthorizedException);
-    });
+      await service.login('john@doe.com', 'password123');
 
-    it('should throw UnauthorizedException if employee not found', async () => {
-      mockPrismaService.employee.findFirstOrThrow.mockRejectedValue({
-        code: 'P2025',
+      expect(mockJwtService.sign).toHaveBeenCalledWith({
+        sub: 'uuid-123',
+        email: 'john@doe.com',
+        level: EmployeeLevel.EMPLOYEE,
+        name: 'John',
       });
-
-      await expect(
-        service.login('notfound@doe.com', 'password123'),
-      ).rejects.toThrow(UnauthorizedException);
     });
   });
 
@@ -141,15 +183,15 @@ describe('EmployeeService', () => {
     it('should return all active employees without password', async () => {
       const mockEmployees = [
         {
-          id: '1',
-          name: 'John',
-          email: 'john@doe.com',
+          id: 'uuid-1',
+          name: 'Alice',
+          email: 'alice@doe.com',
           level: EmployeeLevel.EMPLOYEE,
         },
         {
-          id: '2',
-          name: 'Jane',
-          email: 'jane@doe.com',
+          id: 'uuid-2',
+          name: 'Bob',
+          email: 'bob@doe.com',
           level: EmployeeLevel.ADMIN_HRD,
         },
       ];
@@ -158,15 +200,10 @@ describe('EmployeeService', () => {
 
       const result = await service.findAll();
 
-      expect(result).toEqual(mockEmployees);
+      expect(result).toEqual(mockEmployees)
       expect(mockPrismaService.employee.findMany).toHaveBeenCalledWith({
         where: { deletedAt: null },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          level: true,
-        },
+        select: { id: true, name: true, email: true, level: true },
         orderBy: { name: 'asc' },
       });
     });
@@ -175,7 +212,7 @@ describe('EmployeeService', () => {
   describe('update', () => {
     it('should update employee successfully', async () => {
       const mockEmployee = {
-        id: '1',
+        id: 'uuid-123',
         name: 'John Updated',
         email: 'john@doe.com',
         password: 'hashed',
@@ -186,53 +223,100 @@ describe('EmployeeService', () => {
       mockPrismaService.employee.findFirst.mockResolvedValue(null);
       mockPrismaService.employee.update.mockResolvedValue(mockEmployee);
 
-      const result = await service.update(1, { name: 'John Updated' } as any);
+      const result = await service.update('uuid-123', {
+        name: 'John Updated',
+      } as any);
 
-      expect(result).not.toHaveProperty('password');
-      expect(result.name).toBe('John Updated');
-    });
+      expect(result).not.toHaveProperty('password')
+      expect(result.name).toBe('John Updated')
+    })
 
     it('should throw UnprocessableEntityException if email already exists', async () => {
       mockPrismaService.employee.findFirst.mockResolvedValue({
-        id: '2',
+        id: 'uuid-456',
         email: 'taken@doe.com',
       });
 
-      await expect(
-        service.update(1, { email: 'taken@doe.com' } as any),
+      await expect(service.update('uuid-123', { email: 'taken@doe.com' } as any)
       ).rejects.toThrow(UnprocessableEntityException);
     });
 
     it('should throw NotFoundException if employee not found', async () => {
-      const prismaError = new Error('not found') as any
-      prismaError.code = 'P2025'
-      prismaError.name = 'PrismaClientKnownRequestError'
-
       mockPrismaService.employee.findFirst.mockResolvedValue(null);
+
+      const prismaError = new PrismaClientKnownRequestError('not found', {
+        code: 'P2025',
+        clientVersion: '6.6.0',
+      });
+
       mockPrismaService.employee.update.mockRejectedValue(prismaError);
 
-      await expect(
-        service.update(999, { name: 'Ghost' } as any),
-      ).rejects.toThrow();
+      await expect(service.update('uuid-999', { name: 'Ghost' } as any)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should not check email if email is not in dto', async () => {
+      const mockEmployee = {
+        id: 'uuid-123',
+        name: 'John Updated',
+        email: 'john@doe.com',
+        password: 'hashed',
+        level: EmployeeLevel.EMPLOYEE,
+        deletedAt: null,
+      };
+
+      mockPrismaService.employee.update.mockResolvedValue(mockEmployee);
+
+      await service.update('uuid-123', { name: 'John Updated' } as any);
+
+      expect(mockPrismaService.employee.findFirst).not.toHaveBeenCalled()
     });
   });
 
   describe('remove', () => {
     it('should soft delete an employee', async () => {
       const mockEmployee = {
-        id: '1',
+        id: 'uuid-123',
         name: 'John',
         deletedAt: new Date(),
       };
 
       mockPrismaService.employee.update.mockResolvedValue(mockEmployee);
 
-      const result = await service.remove(1)
+      await service.remove('uuid-123');
 
       expect(mockPrismaService.employee.update).toHaveBeenCalledWith({
-        where: { id: '1' },
+        where: { id: 'uuid-123' },
         data: { deletedAt: expect.any(Date) }
       });
+    });
+  });
+
+  describe('findEmployee', () => {
+    it('should return employee without password', async () => {
+      const mockEmployee = {
+        name: 'John',
+        email: 'john@doe.com',
+        level: EmployeeLevel.EMPLOYEE,
+      };
+
+      mockPrismaService.employee.findFirstOrThrow.mockResolvedValue(
+        mockEmployee,
+      );
+
+      const result = await service.findEmployee('uuid-123');
+
+      expect(result).toEqual(mockEmployee)
+      expect(mockPrismaService.employee.findFirstOrThrow).toHaveBeenCalledWith({
+        where: { deletedAt: null, id: 'uuid-123' },
+        select: { name: true, email: true, level: true },
+      });
+    });
+
+    it('should throw if employee not found', async () => {
+      mockPrismaService.employee.findFirstOrThrow.mockRejectedValue(new Error('not found'))
+
+      await expect(service.findEmployee('uuid-999')).rejects.toThrow()
     });
   });
 });
