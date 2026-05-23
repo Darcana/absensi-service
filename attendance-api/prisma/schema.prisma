@@ -24,4 +24,9 @@ model Attendance {
   type       AttendanceType
   timestamp  DateTime       @default(now())
   imagePath  String?
+
+  @@index([employeeId])
+  @@index([timestamp])
+  @@index([employeeId, timestamp])
 }
+

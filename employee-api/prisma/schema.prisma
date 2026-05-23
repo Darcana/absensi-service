@@ -26,4 +26,6 @@ model Employee {
   password String
   level EmployeeLevel
   deletedAt DateTime?
+
+  @@index([deletedAt])
 }
