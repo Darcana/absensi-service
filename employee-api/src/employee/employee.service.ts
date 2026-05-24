@@ -10,10 +10,14 @@ import * as bcrypt from 'bcrypt';
 import { EmployeeLevel } from '@prisma/client';
 import { UpdateEmployeeDto } from './dto/update.dto';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class EmployeeService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private jwt: JwtService,
+  ) {}
 
   async register(
     employeeName: string,
@@ -36,29 +40,32 @@ export class EmployeeService {
   }
 
   async login(email: string, password: string) {
-    // can be improved for future implementation with any sso
     try {
       const employee = await this.prisma.employee.findFirstOrThrow({
         where: { email, deletedAt: null },
-      });
+      })
 
       const isMatch = await bcrypt.compare(password, employee.password);
       if (!isMatch) throw new UnauthorizedException('Invalid credentials');
 
       const { password: _, ...result } = employee
-      return result;
+
+      const token = this.jwt.sign({
+        sub: result.id,
+        email: result.email,
+        level: result.level,
+        name: result.name,
+      })
+
+      return { token, employee: result };
     } catch (error) {
-      if (error instanceof UnauthorizedException) {
-        throw error;
-      }
-      if (error?.code === 'P2025') {
-        throw new UnauthorizedException('Invalid credentials');
-      }
+      if (error instanceof UnauthorizedException) throw error;
+      if (error?.code === 'P2025') throw new UnauthorizedException('Invalid credentials')
       throw error;
     }
   }
 
-  async update(id: number, dto: UpdateEmployeeDto) {
+  async update(id: string, dto: UpdateEmployeeDto) {
     if (dto.email) {
       const existingEmail = await this.prisma.employee.findFirst({
         where: {
@@ -105,14 +112,14 @@ export class EmployeeService {
     });
   }
 
-  async remove(id: number) {
+  async remove(id: string) {
     return this.prisma.employee.update({
       where: { id },
       data: { deletedAt: new Date() },
     });
   }
 
-  async findEmployee(id: number) {
+  async findEmployee(id: string) {
     return this.prisma.employee.findFirstOrThrow({
       where: { deletedAt: null, id },
       select: {

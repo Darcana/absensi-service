@@ -47,7 +47,7 @@ describe('AttendanceController', () => {
       const dto = { employeeId: 1 };
       const photo = { path: 'uploads/checkin-123.jpg' } as Express.Multer.File;
 
-      const result = await controller.checkIn(dto as any, photo)
+      const result = await controller.checkIn(dto as any, photo);
 
       expect(result).toEqual(mockRecord)
       expect(mockAttendanceService.checkIn).toHaveBeenCalledWith(1, 'uploads/checkin-123.jpg')
@@ -67,8 +67,8 @@ describe('AttendanceController', () => {
       const dto = { employeeId: 1 };
       const result = await controller.checkIn(dto as any, undefined as any)
 
-      expect(result).toEqual(mockRecord)
-      expect(mockAttendanceService.checkIn).toHaveBeenCalledWith(1, undefined)
+      expect(result).toEqual(mockRecord);
+      expect(mockAttendanceService.checkIn).toHaveBeenCalledWith(1, undefined);
     });
   });
 
