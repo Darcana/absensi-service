@@ -64,4 +64,18 @@ export class AttendanceController {
   ) {
     return this.attendanceService.getAllAttendance(page, limit);
   }
+
+  @UseGuards(JwtGuard)
+  @Get('filtered/:employeeId')
+  getAllAttendanceSingleEmployee(
+    @Param('employeeId') employeeId: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    return this.attendanceService.getAllAttendanceSingleEmployee(
+      employeeId,
+      page,
+      limit,
+    );
+  }
 }
